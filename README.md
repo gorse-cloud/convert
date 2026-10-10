@@ -45,6 +45,47 @@ bash hf-job.sh --owner <org>
 bash hf-job.sh --owner <org> --hardware cpu-basic
 ```
 
+## Qwen3 rerankers
+
+The `qwen3-reranker-0.6b`, `qwen3-reranker-4b`, and `qwen3-reranker-8b`
+configs convert `Qwen/Qwen3-Reranker-{0.6B,4B,8B}` to BF16 and Q8_0 GGUFs.
+These are dedicated query/document rerankers, not text-generation models.
+
+```bash
+# Convert the collection and upload to gorse-io; retain downloads and outputs
+bash convert.sh --owner gorse-io --filter '^qwen3-reranker-' --keep
+
+# Convert locally without uploading (HF_TOKEN is not required)
+bash convert.sh --owner gorse-io --filter '^qwen3-reranker-' --keep --no-upload
+```
+
+Use a recent llama.cpp with Qwen3 reranker support. Keep the original downloaded
+source `README.md` intact: the converter uses it (or the source folder name) to
+identify rerankers and produce `RANK` pooling and the `yes`/`no` classifier head.
+This matters because the pipeline's download folder names use underscores.
+The generated upload README is separate from the downloaded source README.
+
+CPU conversion is supported, but reserve RAM for conversion and quantization,
+and disk for the original weights, Hugging Face cache, BF16 output, and Q8_0
+output. The 4B/8B models require substantially more resources than 0.6B, and
+`--keep` retains downloads and generated files. Place the repository and caches
+on a volume with sufficient space (for example, set `HF_HOME` on that volume).
+
+Serve with `llama-server --embedding --reranking --pooling rank` and call
+`POST /v1/rerank` with `query` and `documents`. See each model's README for a
+complete server command and request. The pipeline builds the quantizer only;
+build or install `llama-server` separately.
+
+## Tests
+
+The offline tests use only the Python standard library and Bash. They execute
+the model conversion scripts with fake converter/quantizer executables; no
+weights are downloaded and these tests do not validate real GGUF contents.
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
 ## Notes
 
 - Models are converted only if at least one of the source models has been updated
