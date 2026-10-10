@@ -17,6 +17,7 @@ embedding vectors. Available files:
 
 - `Qwen3-Reranker-0.6B-BF16.gguf`
 - `Qwen3-Reranker-0.6B-Q8_0.gguf`
+- `Qwen3-Reranker-0.6B-Q4_K_M.gguf`
 
 ## Run with llama.cpp
 
@@ -27,7 +28,9 @@ llama-server -hf __owner__/Qwen3-Reranker-0.6B-GGUF:Q8_0 \
     --embedding --reranking --pooling rank --host 127.0.0.1 --port 8080
 ```
 
-For a local file, replace `-hf ...` with `-m Qwen3-Reranker-0.6B-Q8_0.gguf`.
+For the 4-bit variant, use `-hf __owner__/Qwen3-Reranker-0.6B-GGUF:Q4_K_M`
+in the same command. For a local file, replace `-hf ...` with
+`-m Qwen3-Reranker-0.6B-Q8_0.gguf` or `-m Qwen3-Reranker-0.6B-Q4_K_M.gguf`.
 The conversion pipeline builds `llama-quantize`, not `llama-server`; build or
 install the server separately.
 
@@ -51,9 +54,9 @@ so preserving the upstream README matters. Do not replace it with this output
 model card before conversion, especially when using a local source directory.
 
 CPU conversion is supported, but budget RAM for conversion/quantization and disk
-for the source weights, Hugging Face cache, BF16 output, and Q8_0 output.
+for the source weights, Hugging Face cache, and BF16, Q8_0, and Q4_K_M outputs.
 The larger models need substantially more memory and storage; `--keep` retains
-the downloads and both output files.
+the downloads and all three output files.
 
 > [!IMPORTANT]
 > This model is converted using https://github.com/gorse-cloud/convert.
