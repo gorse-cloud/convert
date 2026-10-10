@@ -22,10 +22,10 @@ QUANTIZER = '''#!/usr/bin/env python3
 import json, os, pathlib, sys
 with open(os.environ["COMMAND_LOG"], "a") as log:
     log.write(json.dumps(["quantize", *sys.argv[1:]]) + "\\n")
-if os.environ.get("FAIL_STAGE") == "quantize":
+if os.environ.get("FAIL_STAGE") in ("quantize", sys.argv[3]):
     sys.exit(8)
 assert pathlib.Path(sys.argv[1]).is_file()
-pathlib.Path(sys.argv[2]).write_text("test Q8_0")
+pathlib.Path(sys.argv[2]).write_text("test " + sys.argv[3])
 '''
 
 
@@ -74,31 +74,37 @@ class Qwen3RerankerTests(unittest.TestCase):
                 name = f"Qwen3-Reranker-{size}"
                 self.assertEqual(result.stdout.splitlines(), [name, f"{name}-GGUF", f"Qwen/{name}"])
 
-    def test_conversion_creates_bf16_q8_and_manifest(self):
+    def test_conversion_creates_bf16_q8_q4_and_manifest(self):
         for size in SIZES:
             with self.subTest(size=size):
                 result, commands, files, artifacts, source, output = self.run_conversion(size)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 name = f"Qwen3-Reranker-{size}"
                 bf16, q8 = f"{name}-BF16.gguf", f"{name}-Q8_0.gguf"
+                q4 = f"{name}-Q4_K_M.gguf"
                 self.assertEqual(commands, [
                     ["convert", str(source), "--outfile", str(output / bf16),
                      "--outtype", "bf16", "--model-name", name],
                     ["quantize", str(output / bf16), str(output / q8), "Q8_0"],
+                    ["quantize", str(output / bf16), str(output / q4), "Q4_K_M"],
                 ])
-                self.assertEqual(files, [bf16, q8])
-                self.assertEqual(artifacts, sorted([bf16, q8]))
+                self.assertEqual(files, [bf16, q8, q4])
+                self.assertEqual(artifacts, sorted([bf16, q8, q4]))
 
     def test_failed_conversion_does_not_publish_manifest(self):
         for size in SIZES:
-            for stage, code in (("convert", 7), ("quantize", 8)):
+            for stage, code in (("convert", 7), ("quantize", 8), ("Q4_K_M", 8)):
                 with self.subTest(size=size, stage=stage):
                     result, commands, files, artifacts, _, _ = self.run_conversion(size, stage)
                     self.assertEqual(result.returncode, code, result.stderr)
                     self.assertIsNone(files)
-                    self.assertEqual([command[0] for command in commands],
-                                     ["convert"] if stage == "convert" else ["convert", "quantize"])
-                    self.assertEqual(len(artifacts), 0 if stage == "convert" else 1)
+                    expected_stages = {
+                        "convert": ["convert"],
+                        "quantize": ["convert", "quantize"],
+                        "Q4_K_M": ["convert", "quantize", "quantize"],
+                    }
+                    self.assertEqual([command[0] for command in commands], expected_stages[stage])
+                    self.assertEqual(len(artifacts), len(expected_stages[stage]) - 1)
 
     def test_model_cards_describe_reranking_not_generation(self):
         for size in SIZES:
@@ -116,6 +122,10 @@ class Qwen3RerankerTests(unittest.TestCase):
                 self.assertIn("/v1/rerank", text)
                 self.assertIn("not text generation", text)
                 self.assertIn("README.md", text)
+                for format_name in ("BF16", "Q8_0", "Q4_K_M"):
+                    self.assertIn(f"- `Qwen3-Reranker-{size}-{format_name}.gguf`", text)
+                self.assertIn(f"__owner__/Qwen3-Reranker-{size}-GGUF:Q4_K_M", text)
+                self.assertIn("all three output files", text)
 
 
 if __name__ == "__main__":
