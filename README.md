@@ -76,6 +76,29 @@ Serve with `llama-server --embedding --reranking --pooling rank` and call
 complete server command and request. The pipeline builds the quantizer only;
 build or install `llama-server` separately.
 
+## Qwen3-VL rerankers
+
+The `qwen3-vl-reranker-2b` and `qwen3-vl-reranker-8b` configs convert
+`Qwen/Qwen3-VL-Reranker-{2B,8B}` into BF16, Q8_0, Q4_K_M language GGUFs
+and a separate F16 vision projector (`mmproj`). Preserve the source README
+for reranker detection. Use llama.cpp with Qwen3-VL reranker support (inspected
+at `abee0c8476b585b0d081d580b5ce21d0addc22c4`).
+
+```bash
+# Convert 2B first and retain artifacts without uploading
+bash convert.sh --owner gorse-io --one qwen3-vl-reranker-2b --keep --no-upload
+
+# Convert and upload both sizes
+bash convert.sh --owner gorse-io --filter '^qwen3-vl-reranker-' --keep
+```
+
+The inspected llama.cpp `/v1/rerank` endpoint is **text-only**. Providing a
+projector does not enable image/video reranking through that endpoint.
+The source models are multimodal; the runtime integration is a separate concern.
+See the model cards for text serving commands and limitations. Allow disk for
+source weights, temporary tensors, three language outputs and the projector;
+8B requires substantially more resources than 2B.
+
 ## Tests
 
 The offline tests use only the Python standard library and Bash. They execute
