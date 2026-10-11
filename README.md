@@ -99,6 +99,22 @@ See the model cards for text serving commands and limitations. Allow disk for
 source weights, temporary tensors, three language outputs and the projector;
 8B requires substantially more resources than 2B.
 
+## Llama Nemotron reranker
+
+Convert `nvidia/llama-nemotron-rerank-1b-v2` to BF16, Q8_0 and Q4_K_M:
+
+```bash
+bash convert.sh --one llama-nemotron-rerank-1b-v2 \
+  --llama-commit abee0c8476b585b0d081d580b5ce21d0addc22c4 \
+  --owner gorse-io --keep --no-upload
+```
+
+Remove `--no-upload` to publish. Serving requires the included minimal Llama
+classifier loader patch, not an ordinary unpatched prebuilt binary. See
+[the model card](models/llama-nemotron-rerank-1b-v2/README.md) for patch/build
+instructions, the exact text-only pair prompt, and complete-pair microbatch
+settings. Offline conversion tests do not establish inference parity.
+
 ## Tests
 
 The offline tests use only the Python standard library and Bash. They execute
