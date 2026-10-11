@@ -47,7 +47,14 @@ def validate_gguf(path, source):
     if len(found) != 1 or found[0].ndim != 2 or found[0].shape[0] != 1:
         raise ValueError("Source must contain one scalar score.weight matrix")
     head, score = heads[0], found[0]
-    if tuple(head.shape) != tuple(reversed(score.shape)):
+    head_shape = tuple(head.shape)
+    source_shape = tuple(reversed(score.shape))
+    # GGML fills omitted dimensions with 1; native quantization serializes
+    # [hidden_size, 1] as [hidden_size] for a scalar classifier.
+    dimensions = max(len(head_shape), len(source_shape))
+    if (not head_shape or len(head_shape) > 4 or
+            head_shape + (1,) * (dimensions - len(head_shape)) !=
+            source_shape + (1,) * (dimensions - len(source_shape))):
         raise ValueError("Classifier shape differs from source")
     if not np.array_equal(head.data.reshape(score.shape), score):
         raise ValueError("Classifier F32 values differ from source")

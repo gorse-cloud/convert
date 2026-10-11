@@ -88,6 +88,25 @@ with tempfile.TemporaryDirectory() as tmp:
     assert np.array_equal(head.data.reshape(1,8), score.float().numpy())
     from validate import validate_gguf
     validate_gguf(tmp/'tiny.gguf', tmp)
+    # Native quantization omits trailing singleton GGML dimensions. Exercise
+    # real GGUF serialization for the equivalent scalar-classifier layouts.
+    for shape in [(8,), (8, 1, 1)]:
+        vector_path = tmp / ('scalar-' + str(len(shape)) + '.gguf')
+        writer = gguf.GGUFWriter(vector_path, 'llama')
+        writer.add_causal_attention(False)
+        writer.add_pooling_type(gguf.PoolingType.RANK)
+        writer.add_classifier_pooling_type(gguf.PoolingType.MEAN)
+        writer.add_classifier_output_labels(['relevance'])
+        plugin.add_rerank_template(writer)
+        writer.add_add_bos_token(False)
+        writer.add_token_list(['<|begin_of_text|>'])
+        writer.add_bos_token_id(0)
+        writer.add_tensor('cls.output.weight', score.float().numpy().reshape(tuple(reversed(shape))))
+        writer.write_header_to_file()
+        writer.write_kv_data_to_file()
+        writer.write_tensors_to_file()
+        writer.close()
+        validate_gguf(vector_path, tmp)
     # Validation rejects incompatible metadata and altered source classifier values.
     save_file({'score.weight':score+1}, str(tmp/'model.safetensors'))
     try: validate_gguf(tmp/'tiny.gguf', tmp)
