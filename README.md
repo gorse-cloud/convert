@@ -99,6 +99,31 @@ See the model cards for text serving commands and limitations. Allow disk for
 source weights, temporary tensors, three language outputs and the projector;
 8B requires substantially more resources than 2B.
 
+## Qwen3-VL embeddings
+
+The `qwen3-vl-embedding-2b` and `qwen3-vl-embedding-8b` configs cover the
+[official Qwen3-VL-Embedding collection](https://huggingface.co/collections/Qwen/qwen3-vl-embedding).
+Each produces BF16, Q8_0 and Q4_K_M language GGUFs plus a matching F16
+vision projector (`mmproj`). These are embedding models, not rerankers.
+
+```bash
+# Convert 2B locally first, keeping downloads and outputs
+bash convert.sh --owner gorse-io --one qwen3-vl-embedding-2b --keep --no-upload
+
+# Convert and upload both sizes
+bash convert.sh --owner gorse-io --filter '^qwen3-vl-embedding-' --keep
+```
+
+Use a recent llama.cpp with Qwen3-VL conversion and `lasttoken` pooling
+configuration support (inspected at `091b6a7fc561b78da90a0ed2d524ec995458c657`).
+Keep source `modules.json`, `1_Pooling/config.json` and `chat_template.jinja`
+intact: embeddings use LAST pooling and L2 normalization, not RANK pooling.
+The embeddings API does not automatically apply the chat template. See the
+[2B model card](models/qwen3-vl-embedding-2b/README.md) or
+[8B model card](models/qwen3-vl-embedding-8b/README.md) for complete text prompt
+examples and multimodal runtime limitations. Offline tests do not establish
+real-model conversion or embedding parity.
+
 ## Llama Nemotron reranker
 
 Convert `nvidia/llama-nemotron-rerank-1b-v2` to BF16, Q8_0 and Q4_K_M:
